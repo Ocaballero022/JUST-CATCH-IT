@@ -1,0 +1,124 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Just Catch It!</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body{padding:18px}
+.row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;align-items:stretch}
+.row>.card{flex:1 1 320px;max-width:520px}
+#code{font-size:clamp(4rem,14vw,8rem);font-weight:900;letter-spacing:.15em;color:var(--sun);text-shadow:0 6px 0 rgba(0,0,0,.3);text-align:center}
+#qr{display:block;margin:8px auto;width:min(260px,60vw);border-radius:16px;background:#fff;padding:8px}
+#url{word-break:break-all;font-weight:700}
+.pl,.pc{display:inline-flex;flex-direction:column;align-items:center;margin:6px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,.18);font-weight:900;min-width:96px}
+.pl .e,.pc .e{font-size:2.6rem}
+#board{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.pc.dead{opacity:.35;filter:grayscale(1)} .pc .h{font-size:1.2rem}
+#stage{text-align:center;margin:18px auto;max-width:900px;padding:26px}
+#stTitle{font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;color:var(--sun)}
+#stText{font-size:clamp(2rem,5.5vw,3.8rem);font-weight:900;line-height:1.25;margin:16px 0 22px}
+#feed{max-width:900px;margin:0 auto;font-size:1.3rem;font-weight:700;text-align:center}
+#feed div{margin:4px 0;opacity:.9}
+#end{text-align:center}#end .big{font-size:9rem}
+#net{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:70;background:var(--pink);padding:8px 18px;border-radius:14px;font-weight:900}
+#snd{position:fixed;top:12px;right:12px;z-index:60;font-size:1.6rem;padding:8px 14px}
+#tap{text-align:center;font-weight:900;color:var(--sun);margin:4px 0 10px}
+</style></head><body data-title="title">
+<button id="snd" class="btn" data-t="h.music" title="Music on/off">🔊</button>
+<div id="net" class="hide" data-i="h.reconnecting">📡 Reconnecting… the game keeps going</div><div id="cd" class="cd hide"></div><div id="fxl"></div><div class="sad" id="sadl"></div>
+<section id="lobby">
+  <h1 class="logo"><span class="paw">🐾</span> Just <span class="catch">Catch It!</span></h1>
+  <div id="tap" data-i="h.tap">🎵 Click anywhere to turn on the music!</div>
+  <div class="row">
+    <div class="card"><div data-i="h.go">On your phone, go to</div><div id="url">…</div><div id="code">····</div><img id="qr" alt="QR code to join"></div>
+    <div class="card">
+      <div class="langrow"><span data-i="h.lang">Game language</span><span class="langsw"><button data-l="en">English</button><button data-l="es">Español</button></span></div>
+      <label><span data-i="h.players">Number of players</span><select id="max"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option selected>8</option></select></label>
+      <div id="plist"><p data-i="h.waiting">Waiting for players…</p></div>
+      <button id="start" class="btn mint" disabled style="width:100%" data-i="h.start">Start game</button>
+      <p id="hint">Need at least 2 players.</p>
+    </div>
+  </div>
+</section>
+<section id="play" class="hide">
+  <div id="board"></div>
+  <div id="stage" class="card"><div id="stTitle"></div><div id="stText"></div><div class="bar"><i id="bar"></i></div></div>
+  <div id="feed"></div>
+</section>
+<section id="end" class="hide"><h1 class="logo"><span class="paw">🏆</span> <span data-i="h.over">Game over</span></h1><div id="crown">👑</div><div class="big champ" id="eav"></div><h1 id="etx"></h1>
+  <button class="btn mint" id="again" data-i="h.again">Play again</button>
+  <button class="btn" id="newroom" data-i="h.new">Close room &amp; new game</button>
+</section>
+<script src="/socket.io/socket.io.js"></script><script src="/i18n.js"></script><script src="/sfx.js"></script><script src="/fx.js"></script>
+<script>
+const $=s=>document.querySelector(s), sock=io(); let st=null, endT=0;
+const show=id=>['lobby','play','end'].forEach(x=>$('#'+x).classList.toggle('hide',x!==id));
+async function origin(){
+  if(['localhost','127.0.0.1'].includes(location.hostname)){try{const i=await(await fetch('/api/lan')).json();return`http://${i.ip}:${i.port}`}catch(e){}}
+  return location.origin;
+}
+let hostOrigin;
+const setRoom=r=>{$('#code').textContent=r.code;$('#url').textContent=r.url.replace(/^https?:\/\//,'').replace(/\?.*/,'');$('#qr').src=r.qr};
+let creating=false;
+const create=()=>{if(creating)return;creating=true;sock.emit('host:create',{origin:hostOrigin,lang:LANG},r=>{
+  creating=false;sessionStorage.jcHost=r.code;setRoom(r);FX.clear();
+  $('#plist').innerHTML=`<p data-i="h.waiting">${T('h.waiting')}</p>`;$('#board').innerHTML='';
+  $('#start').disabled=true;$('#hint').textContent=T('h.need');$('#max').value=8;
+  show('lobby');SFX.music('intro');
+})};
+// on first load AND after every reconnect: try to resume the same room, else make a new one
+sock.on('connect',async()=>{
+  hostOrigin=hostOrigin||await origin();
+  const saved=sessionStorage.jcHost;
+  if(saved)sock.emit('host:resume',{code:saved,origin:hostOrigin},r=>{r&&r.ok?setRoom(r):create()});
+  else create();
+});
+// browsers need one click before they allow sound
+addEventListener('pointerdown',()=>{SFX.unlock();$('#tap').classList.add('hide')},{once:true});
+$('#snd').onclick=e=>{e.stopPropagation();$('#snd').textContent=SFX.mute(!SFX.isMuted())?'🔇':'🔊'};
+$('#max').onchange=e=>sock.emit('host:max',+e.target.value);
+$('#start').onclick=()=>{SFX.unlock();sock.emit('host:start')};
+$('#again').onclick=()=>{SFX.unlock();sock.emit('host:again')};
+// close this room (phones are sent home) and open a brand-new one with a new code + QR
+$('#newroom').onclick=()=>{SFX.unlock();clearTimeout(endT);sock.emit('host:close',()=>{delete sessionStorage.jcHost;create()})};
+function renderLobby(s){
+  $('#plist').innerHTML=s.players.length?s.players.map(p=>`<span class="pl"><span class="e">${FX.av(p)}</span>${p.name}</span>`).join(''):`<p data-i="h.waiting">${T('h.waiting')}</p>`;
+  $('#start').disabled=s.players.length<2;$('#hint').textContent=s.players.length<2?T('h.need'):T('h.ready',{n:s.players.length,m:s.max});
+}
+// picking a language on the host screen sets the interface AND the clue language of the room
+window.onLang=l=>{sock.emit('host:lang',l);if(st&&st.phase==='lobby')renderLobby(st)};
+applyLang();
+sock.on('state',s=>{
+  st=s;$('#max').value=s.max;
+  if(s.lang&&s.lang!==LANG)setLang(s.lang,true);   // the room's language wins (e.g. after a reconnect)
+  if(s.phase==='lobby')show('lobby');else if(s.phase!=='over'&&$('#play').classList.contains('hide'))show('play');
+  if(s.phase==='lobby'){
+    SFX.music('intro');
+    renderLobby(s);
+  }
+  $('#board').innerHTML=s.players.map(p=>`<span class="pc ${p.alive?'':'dead'}"><span class="e">${FX.av(p)}</span>${p.name}<span class="h">${'❤️'.repeat(p.lives)}${p.shield?'🛡️':''}${p.power?'⚡':''}</span></span>`).join('');
+});
+function stage(t,x,ms){
+  $('#stTitle').textContent=t;$('#stText').textContent=x;const b=$('#bar');b.style.transition='none';b.style.width=ms?'100%':'0';
+  if(ms)requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.transition=`width ${ms}ms linear`;b.style.width='0'}));
+}
+sock.on('count',()=>{clearTimeout(endT);FX.clear();SFX.music(null);show('play');$('#feed').innerHTML='';stage(T('h.getready'),'🐾 …',0);FX.countdown($('#cd'))});
+sock.on('clue',d=>{$('#cd').classList.add('hide');show('play');SFX.music('game');$('#feed').innerHTML='';stage(T('h.round',{n:d.round}),d.clue,d.ms);SFX.tick()});
+sock.on('grid',d=>{stage(T('h.find'),d.clue||'',0);SFX.go()});
+sock.on('won',d=>{stage(T('h.roundwin',{a:d.avatar,n:d.name}),T('h.itwas',{e:d.emoji,x:animalName(d.animal)}),0);SFX.win()});
+sock.on('hit',d=>{stage(d.blocked?T('h.blocked'):T('h.ouch'),d.blocked?T('h.shieldsaved',{n:d.name}):T(d.out?'h.losesOut':'h.loses',{a:d.avatar,n:d.name}),0);d.blocked?SFX.shield():SFX.hit()});
+sock.on('powerUsed',d=>SFX.pw[d.key]&&SFX.pw[d.key]());
+sock.on('feed',d=>{const f=$('#feed'),e=document.createElement('div');if(d.k==='used')d.a.p=T('pw.'+d.a.k);e.textContent=T('f.'+d.k,d.a);f.prepend(e);while(f.children.length>4)f.lastChild.remove();if(d.sfx&&SFX[d.sfx])SFX[d.sfx]()});
+// keep the host screen awake and always try to reconnect
+let wl;const lock=async()=>{try{wl=await navigator.wakeLock.request('screen')}catch(e){}};lock();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){lock();if(!sock.connected)sock.connect()}});
+setInterval(()=>{if(!sock.connected)sock.connect()},3000);
+// if the server forgot our room (e.g. it was restarted), make a fresh room and show the NEW code
+setInterval(()=>{if(!sock.connected||!sessionStorage.jcHost||!hostOrigin)return;sock.emit('host:alive',sessionStorage.jcHost,ok=>{if(!ok)create()})},4000);
+sock.on('disconnect',()=>$('#net').classList.remove('hide'));sock.on('connect',()=>$('#net').classList.add('hide'));
+sock.on('over',d=>{
+  show('end');SFX.music(null);
+  $('#crown').style.display=d.name?'block':'none';
+  $('#eav').innerHTML=d.name?FX.av(d):'🤝';$('#etx').textContent=d.name?T('h.last',{n:d.name}):T('h.draw');
+  FX.over(d.losers,!!d.name);SFX.victory();
+  endT=setTimeout(()=>SFX.music('intro'),8000);
+});
+</script></body></html>

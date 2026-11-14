@@ -1,0 +1,268 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Just Catch It!</title><link rel="stylesheet" href="/style.css">
+<style>
+.screen{max-width:520px;margin:0 auto;padding:14px;min-height:100vh}
+#s-game{max-width:none;padding:6px;height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column}
+#avs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}
+.av{font-size:1.8rem;padding:6px 0;border-radius:14px;border:3px solid transparent;background:rgba(255,255,255,.2);cursor:pointer}
+.av.sel{background:var(--sun);border-color:#fff;transform:scale(1.12)}
+#pv{display:block;width:130px;height:130px;margin:6px auto}
+#flt{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.fb{font-size:1.5rem;padding:4px 10px;border-radius:12px;border:3px solid transparent;background:rgba(255,255,255,.2);cursor:pointer}
+.fb.sel{background:var(--sun);border-color:#fff}
+#noPhoto{background:none;border:0;color:#fff;text-decoration:underline;font:inherit;font-weight:700;margin-bottom:8px;cursor:pointer}
+.small{font-size:.95rem;font-weight:700;margin:6px 0 10px}
+#err{color:var(--sun);font-weight:900;min-height:1.2em;margin:8px 0 0}
+#code{text-transform:uppercase;letter-spacing:.4em;text-align:center}
+.center{text-align:center}.big{font-size:5rem}
+#roster span{font-size:2.4rem;margin:3px}
+#top{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:1.05rem;margin-bottom:4px}
+#hearts{font-size:1.4rem}
+#clueText{font-size:1.75rem;font-weight:900;line-height:1.3;margin:12px 0 18px}
+#gridwrap{flex:1;min-height:0;position:relative}
+#grid{display:grid;grid-template-columns:repeat(var(--cols,8),1fr);grid-auto-rows:1fr;height:100%;background:rgba(255,255,255,.12);border-radius:16px;padding:2px;overflow:hidden}
+.cell{font-size:var(--fs,34px);line-height:1;padding:0;border:0;background:transparent;display:flex;align-items:center;justify-content:center;transform:rotate(var(--r)) scale(var(--s));cursor:pointer;transition:font-size .25s,opacity .2s}
+.cell:active{background:rgba(255,255,255,.35);border-radius:12px}
+#grid.radar .cell:not(.hint){opacity:.3}
+.cell.hint{background:rgba(255,210,63,.5);border-radius:14px;box-shadow:0 0 14px var(--sun)}
+.fx-shrink .cell{font-size:calc(var(--fs,34px)*.4)}
+.fx-double #gridwrap{animation:shake .12s infinite}
+.fx-double .cell{filter:blur(1.5px) drop-shadow(9px 0 0 rgba(255,0,200,.55)) drop-shadow(-9px 0 0 rgba(0,230,255,.55))}
+@keyframes shake{0%{transform:translate(3px,-2px)}50%{transform:translate(-4px,2px)}100%{transform:translate(2px,3px)}}
+#gridwrap{overflow:hidden;transition:transform .4s}
+.fx-flip #gridwrap{transform:rotate(180deg)}
+.fx-mirror #gridwrap{transform:scaleX(-1)}
+.fx-zoom #grid{transform:scale(2.4);transform-origin:var(--zo,30% 30%);transition:transform .4s}
+.fx-fog #grid{filter:blur(7px)}
+.fx-dark #grid{filter:brightness(.1)}
+.fx-spin #grid{animation:spin 4s linear infinite}
+@keyframes spin{from{transform:rotate(0) scale(.72)}to{transform:rotate(360deg) scale(.72)}}
+.fx-drunk #grid{animation:drunk 1.4s ease-in-out infinite alternate}
+@keyframes drunk{from{transform:rotate(-7deg) skewX(-9deg) translateX(-4%)}to{transform:rotate(7deg) skewX(9deg) translateX(4%)}}
+.fx-disco #grid{animation:disco .7s linear infinite}
+@keyframes disco{from{filter:hue-rotate(0) saturate(2.5)}to{filter:hue-rotate(360deg) saturate(2.5)}}
+.fx-quake #gridwrap{animation:quake .07s infinite}
+@keyframes quake{0%{transform:translate(9px,-7px)}33%{transform:translate(-10px,6px)}66%{transform:translate(7px,9px)}100%{transform:translate(-8px,-9px)}}
+.fx-ghost .cell{animation:ghost 1s ease-in-out infinite alternate}
+@keyframes ghost{from{opacity:.06}to{opacity:.75}}
+.fx-bounce .cell{animation:bnc .35s ease-in-out infinite alternate}
+.fx-bounce .cell:nth-child(even){animation-delay:.17s}
+@keyframes bnc{from{transform:translateY(-35%)}to{transform:translateY(35%)}}
+.cell.gone{opacity:.05;pointer-events:none}
+.cell.dead{visibility:hidden;pointer-events:none}
+.cell.poof{pointer-events:none;animation:poof .45s forwards}
+@keyframes poof{40%{transform:scale(1.5) rotate(20deg);opacity:1}100%{transform:scale(0) rotate(180deg);opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.cell.poof{visibility:hidden}}
+#net{position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:70;background:var(--pink);padding:6px 14px;border-radius:14px;font-weight:900}
+#crate{position:absolute;z-index:4;left:10px;top:10px;width:72px;height:72px;font-size:2.6rem;line-height:1;padding:0;border:0;border-radius:50%;background:radial-gradient(#fff9,var(--sun));box-shadow:0 0 22px 8px var(--sun);transition:left 1.1s ease-in-out,top 1.1s ease-in-out;animation:wob .4s infinite alternate}
+@keyframes wob{to{transform:rotate(14deg) scale(1.12)}}
+#ink{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .15s;z-index:5;
+ background:radial-gradient(circle at 20% 25%,#05010f 0 24%,transparent 25%),radial-gradient(circle at 78% 18%,#0a0220 0 26%,transparent 27%),radial-gradient(circle at 55% 55%,#05010f 0 30%,transparent 31%),radial-gradient(circle at 15% 80%,#0a0220 0 28%,transparent 29%),radial-gradient(circle at 85% 82%,#05010f 0 27%,transparent 28%),rgba(5,1,15,.8)}
+.fx-ink #ink{opacity:.96}
+#ice{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(150,225,255,.88);color:#0a3a63;backdrop-filter:blur(6px);text-align:center}
+#iceN{font-size:6rem;font-weight:900}
+#power{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;font-size:1.3rem;padding:16px 26px;animation:pulse .8s infinite alternate}
+@keyframes pulse{to{transform:translateX(-50%) scale(1.08)}}
+#banner{font-size:1.6rem;font-weight:900;text-align:center;margin:10px 0}
+#choose{position:fixed;inset:0;z-index:8;background:rgba(27,11,58,.96);padding:20px;overflow:auto;text-align:center}
+.opt{display:block;width:100%;margin:12px 0;font-size:1.4rem}
+.out #grid{opacity:.45;pointer-events:none}
+#spec{background:var(--pink);border-radius:12px;padding:4px 10px;font-size:.9rem}
+</style></head><body>
+<div id="net" class="hide" data-i="reconnecting">📡 Reconnecting…</div><div id="cd" class="cd hide"></div><div id="fxl"></div><div class="sad" id="sadl"></div>
+
+<section id="s-join" class="screen">
+  <div class="langtop"><span class="langsw"><button data-l="en">EN</button><button data-l="es">ES</button></span></div>
+  <h1 class="logo"><span class="paw">🐾</span> Just <span class="catch">Catch It!</span></h1>
+  <div class="card">
+    <input id="code" maxlength="4" data-ph="p.code" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters">
+    <input id="name" maxlength="12" data-ph="p.name" placeholder="Your name" autocomplete="off">
+    <div id="avs"></div>
+    <div id="photoBox" class="center">
+      <button type="button" class="btn mint" id="camBtn" data-i="p.photo" style="width:100%;margin-bottom:8px">📸 Take a photo (optional)</button>
+      <input id="camIn" type="file" accept="image/*" capture="user" class="hide">
+      <canvas id="pv" width="128" height="128" class="hide"></canvas>
+      <div id="flt" class="hide"></div>
+      <button type="button" id="noPhoto" class="hide" data-i="p.remove">✖ Remove photo</button>
+      <p class="small" data-i="p.nophoto">No photo? Your animal will dance instead! 💃</p>
+    </div>
+    <button class="btn" id="joinBtn" data-i="p.join" style="width:100%">Join game</button>
+    <p id="err"></p>
+  </div>
+  <p class="center"><a href="/host" style="color:#fff" data-i="p.host">Host a game on this screen</a></p>
+</section>
+
+<section id="s-wait" class="screen hide center">
+  <div class="langtop"><span class="langsw"><button data-l="en">EN</button><button data-l="es">ES</button></span></div>
+  <h1 class="logo" data-i="p.in">You're in!</h1>
+  <div class="card"><div class="big" id="myav"></div><h2 id="cnt"></h2><div id="roster"></div><p data-i="p.waitHost">Waiting for the host to start the game…</p></div>
+</section>
+
+<section id="s-game" class="screen hide">
+  <div id="top"><span><span id="me"></span> <span id="spec" class="hide" data-i="p.watching">watching</span></span><span id="hearts"></span></div>
+  <div id="banner" class="hide"></div>
+  <div id="clue" class="card hide">
+    <div id="clueHead"></div>
+    <p id="clueText"></p><div class="bar"><i id="bar"></i></div>
+  </div>
+  <div id="gridwrap" class="hide"><div id="grid"></div><button id="crate" class="hide">🎁</button></div>
+  <button id="power" class="btn mint hide"></button>
+  <div id="ink"></div>
+  <div id="ice" class="hide"><div id="iceMsg" style="font-size:2rem;font-weight:900"></div><div id="iceN"></div></div>
+  <div id="choose" class="hide"><h1 data-i="p.chooseT">🎯 You got it!</h1><h2 data-i="p.chooseS">Pick a player to lose a life</h2><div id="opts"></div><div class="bar"><i id="pbar"></i></div></div>
+</section>
+
+<section id="s-over" class="screen hide center">
+  <h1 class="logo" data-i="p.over">Game over</h1><div class="card"><div id="crown">👑</div><div class="big champ" id="oav"></div><h1 id="otxt"></h1><p data-i="p.rematch">Watch the big screen for a rematch.</p></div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script><script src="/i18n.js"></script><script src="/sfx.js"></script><script src="/fx.js"></script>
+<script>
+const $=s=>document.querySelector(s), sock=io();
+applyLang();
+const AV=['🦊','🐼','🐸','🐙','🦄','🐯','🐨','🐵','🐷','🦉','🐧','🐲'];
+let photoImg=null,photoData=null,flt=0,av=null,my=null,out=false,iceT=0,radar=[],fxT={},crateId=null,crateT=0,clueIv=0;
+const q=new URLSearchParams(location.search);
+$('#code').value=(q.get('room')||localStorage.jcRoom||'').toUpperCase(); $('#name').value=localStorage.jcName||'';
+$('#avs').innerHTML=AV.map(a=>`<button class="av" data-a="${a}">${a}</button>`).join('');
+$('#avs').onclick=e=>{const b=e.target.closest('.av');if(!b)return;av=b.dataset.a;[...$('#avs').children].forEach(x=>x.classList.toggle('sel',x===b));if(photoImg)renderPhoto()};
+const show=id=>document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hide',s.id!==id));
+const err=t=>$('#err').textContent=t||'';
+const banner=h=>{const b=$('#banner');h?(b.innerHTML=h,b.classList.remove('hide'),b.classList.remove('pop'),void b.offsetWidth,b.classList.add('pop')):b.classList.add('hide')};
+function doJoin(auto){
+  const code=$('#code').value.trim().toUpperCase(), name=$('#name').value.trim();
+  const token=localStorage.jcRoom===code?localStorage.jcToken:null;
+  if(!auto){SFX.unlock();err()}
+  sock.emit('player:join',{code,name,avatar:av,token,photo:photoData},r=>{
+    if(r.err){if(!auto)err(T('e.'+r.err));return}
+    my=r.id;localStorage.jcRoom=r.code;localStorage.jcToken=r.token;localStorage.jcName=name;show('s-wait');
+  });
+}
+// ---- selfie + animal filter (the phone's own camera app opens, works on plain http) ----
+const FILTERS=[{e:null},{e:'ANIMAL',x:64,y:18,s:52},{e:'👑',x:64,y:16,s:50},{e:'🎩',x:64,y:16,s:50},{e:'🕶️',x:64,y:66,s:64},{e:'🐽',x:64,y:90,s:44},{e:'👅',x:64,y:108,s:34}];
+$('#flt').innerHTML=FILTERS.map((f,i)=>`<button type="button" class="fb${i===0?' sel':''}" data-i="${i}">${f.e==='ANIMAL'?'🐾':f.e||'🚫'}</button>`).join('');
+function renderPhoto(){
+  const cv=$('#pv'),x=cv.getContext('2d'),im=photoImg;x.clearRect(0,0,128,128);
+  const s=Math.min(im.width,im.height),sx=(im.width-s)/2,sy=(im.height-s)/2;
+  x.save();x.beginPath();x.arc(64,72,48,0,Math.PI*2);x.clip();x.drawImage(im,sx,sy,s,s,16,24,96,96);x.restore();
+  x.beginPath();x.arc(64,72,48,0,Math.PI*2);x.lineWidth=5;x.strokeStyle='#fff';x.stroke();
+  const f=FILTERS[flt];
+  if(f.e){x.font=`${f.s}px serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(f.e==='ANIMAL'?(av||'🐾'):f.e,f.x,f.y)}
+  photoData=cv.toDataURL('image/png');
+}
+$('#camBtn').onclick=()=>$('#camIn').click();
+$('#camIn').onchange=e=>{
+  const file=e.target.files[0];if(!file)return;
+  const im=new Image();im.onload=()=>{photoImg=im;['#pv','#flt','#noPhoto'].forEach(s=>$(s).classList.remove('hide'));$('#camBtn').dataset.i='p.retake';applyLang();renderPhoto();URL.revokeObjectURL(im.src)};
+  im.src=URL.createObjectURL(file);
+};
+$('#flt').onclick=e=>{const b=e.target.closest('.fb');if(!b||!photoImg)return;flt=+b.dataset.i;[...$('#flt').children].forEach(x=>x.classList.toggle('sel',x===b));renderPhoto()};
+$('#noPhoto').onclick=()=>{photoImg=null;photoData=null;$('#camIn').value='';['#pv','#flt','#noPhoto'].forEach(s=>$(s).classList.add('hide'));$('#camBtn').dataset.i='p.photo';applyLang()};
+$('#joinBtn').onclick=()=>doJoin(false);
+sock.on('connect',()=>{if(localStorage.jcToken&&$('#code').value)doJoin(true)});
+
+let lastS=null;
+window.onLang=()=>{if(lastS)$('#cnt').textContent=T('p.count',{n:lastS.players.length,m:lastS.max})};
+sock.on('state',s=>{
+  lastS=s;
+  const p=s.players.find(x=>x.id===my); if(!p)return;
+  out=!p.alive; $('#s-game').classList.toggle('out',out); $('#spec').classList.toggle('hide',!out);
+  $('#me').textContent=p.avatar+' '+p.name;
+  $('#hearts').textContent='❤️'.repeat(p.lives)+'🖤'.repeat(Math.max(0,3-p.lives))+(p.shield?' 🛡️':'');
+  if(s.phase==='lobby'){$('#myav').innerHTML=FX.av(p);$('#cnt').textContent=T('p.count',{n:s.players.length,m:s.max});$('#roster').innerHTML=s.players.map(x=>FX.av(x)).join('');show('s-wait')}
+  else if(s.phase!=='over'&&!$('#s-game').offsetParent)show('s-game');
+});
+const hideCrate=()=>{clearInterval(crateT);crateT=0;crateId=null;$('#crate').classList.add('hide')};
+const resetFx=()=>{const g=$('#s-game');[...g.classList].filter(c=>c.startsWith('fx-')).forEach(c=>g.classList.remove(c));clearInterval(iceT);iceT=0;$('#ice').classList.add('hide');$('#choose').classList.add('hide');$('#grid').classList.remove('radar');hideCrate()};
+sock.on('count',()=>{
+  FX.clear();show('s-game');resetFx();radar=[];banner();clearInterval(clueIv);
+  $('#gridwrap').classList.add('hide');$('#clue').classList.add('hide');$('#power').classList.add('hide');
+  FX.countdown($('#cd'));
+});
+sock.on('clue',d=>{
+  $('#cd').classList.add('hide');show('s-game');resetFx();radar=[];banner();$('#power').classList.add('hide');
+  $('#gridwrap').classList.add('hide');$('#clue').classList.remove('hide');
+  $('#clueHead').innerHTML=T('p.round',{n:d.round});$('#clueText').textContent=d.clue;
+  const b=$('#bar');b.style.transition='none';b.style.width='100%';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.transition=`width ${d.ms}ms linear`;b.style.width='0'}));
+  const total=Math.round(d.ms/1000);let n=0;SFX.tick();clearInterval(clueIv);clueIv=setInterval(()=>{if(++n>=total)clearInterval(clueIv);SFX.tick()},1000);
+});
+// make the grid fill the whole screen: 8x12 on portrait phones, 12x8 on landscape
+function fit(){
+  const g=$('#grid'),n=g.children.length;if(!n)return;
+  const w=g.clientWidth,h=g.clientHeight,cols=h>w?8:12,rows=Math.ceil(n/cols);
+  g.style.setProperty('--cols',cols);
+  g.style.setProperty('--fs',Math.floor(Math.min(w/cols,h/rows)*.78)+'px');
+}
+addEventListener('resize',fit);
+function draw(g){
+  $('#grid').innerHTML=g.map(e=>!e?'<span class="cell dead"></span>':`<button class="cell ${radar.includes(e)?'hint':''}" data-e="${e}" style="--r:${(Math.random()*36-18)|0}deg;--s:${(.85+Math.random()*.35).toFixed(2)}">${e}</button>`).join('');
+  $('#grid').classList.toggle('radar',radar.length>0);
+  fit();
+}
+sock.on('grid',d=>{clearInterval(clueIv);$('#cd').classList.add('hide');show('s-game');$('#clue').classList.add('hide');$('#gridwrap').classList.remove('hide');draw(d.grid);SFX.go()});
+sock.on('scramble',d=>{draw(d.grid);$('#grid').classList.remove('pop');void $('#grid').offsetWidth;$('#grid').classList.add('pop')});
+$('#grid').addEventListener('pointerdown',e=>{const c=e.target.closest('.cell');if(!c||out||iceT)return;sock.emit('tap',c.dataset.e)});
+
+// flying power-up crate: first player to tap it gets the power
+function moveCrate(){
+  const w=$('#gridwrap'),c=$('#crate');
+  c.style.left=Math.random()*Math.max(0,w.clientWidth-72)+'px';c.style.top=Math.random()*Math.max(0,w.clientHeight-72)+'px';
+}
+sock.on('crate',d=>{
+  if(!d){hideCrate();return}
+  if(out)return;
+  crateId=d.id;const c=$('#crate');c.style.transition='none';moveCrate();c.classList.remove('hide');
+  void c.offsetWidth;c.style.transition='';
+  clearInterval(crateT);crateT=setInterval(moveCrate,1100);SFX.crate();navigator.vibrate&&navigator.vibrate(60);
+});
+$('#crate').addEventListener('pointerdown',e=>{e.stopPropagation();if(!out&&crateId&&!iceT)sock.emit('grab',crateId)});
+
+sock.on('frozen',d=>{
+  clearInterval(iceT);const t0=Date.now();$('#ice').classList.remove('hide');
+  $('#iceMsg').textContent=d.wrong?T('p.wrong'):T('p.frozen');
+  if(d.wrong)SFX.wrong(); navigator.vibrate&&navigator.vibrate(200);
+  iceT=setInterval(()=>{const l=d.ms-(Date.now()-t0);if(l<=0){clearInterval(iceT);iceT=0;$('#ice').classList.add('hide')}else $('#iceN').textContent=(l/1000).toFixed(1)},80);
+});
+sock.on('powerUsed',d=>SFX.pw[d.key]&&SFX.pw[d.key]());
+sock.on('fx',d=>{
+  const g=$('#s-game');g.classList.add('fx-'+d.type);
+  if(d.type==='zoom')g.style.setProperty('--zo',(20+Math.random()*60|0)+'% '+(20+Math.random()*60|0)+'%');
+  clearTimeout(fxT[d.type]);fxT[d.type]=setTimeout(()=>g.classList.remove('fx-'+d.type),d.ms);
+});
+sock.on('radar',l=>{radar=l;$('#grid').classList.add('radar');document.querySelectorAll('.cell').forEach(c=>c.classList.toggle('hint',l.includes(c.dataset.e)))});
+sock.on('remove',d=>{document.querySelectorAll('.cell').forEach(c=>{if(c.dataset.e===d.emoji)c.classList.add('poof')});SFX.tick()});
+sock.on('trim',idx=>{const cs=document.querySelectorAll('.cell');idx.forEach(i=>cs[i]&&cs[i].classList.add('gone'))});
+sock.on('power',p=>{
+  const b=$('#power');if(!p){b.classList.add('hide');return}
+  b.textContent=T('p.use',{i:p.icon,p:T('pw.'+p.key)});b.classList.remove('hide');SFX.grab();navigator.vibrate&&navigator.vibrate(80);
+});
+$('#power').onclick=()=>{if(!out)sock.emit('usePower')};
+sock.on('won',d=>{
+  resetFx();$('#gridwrap').classList.add('hide');$('#power').classList.add('hide');
+  banner(T('p.caught',{a:d.avatar,n:d.name,e:d.emoji,x:animalName(d.animal)}));d.id===my?SFX.win():SFX.hit();
+});
+sock.on('choose',d=>{
+  $('#opts').innerHTML=d.opts.map(o=>`<button class="btn opt" data-id="${o.id}">${o.avatar} ${o.name} ${'❤️'.repeat(o.lives)}${o.shield?' 🛡️':''}</button>`).join('');
+  $('#choose').classList.remove('hide');
+  const b=$('#pbar');b.style.transition='none';b.style.width='100%';requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.transition=`width ${d.ms}ms linear`;b.style.width='0'}));
+});
+$('#opts').onclick=e=>{const b=e.target.closest('.opt');if(!b)return;sock.emit('target',b.dataset.id);$('#choose').classList.add('hide')};
+sock.on('hit',d=>{
+  $('#choose').classList.add('hide');
+  banner(d.blocked?T('p.blockedHit',{n:d.name}):T(d.out?'p.hitOut':'p.hit',{a:d.avatar,n:d.name}));
+  d.blocked?SFX.shield():SFX.hit(); if(d.id===my&&!d.blocked)navigator.vibrate&&navigator.vibrate([100,50,200]);
+});
+sock.on('over',d=>{
+  resetFx();show('s-over');const won=d.id===my;
+  $('#crown').style.display=d.name?'block':'none';
+  $('#oav').innerHTML=d.name?FX.av(d):'🤝';$('#otxt').textContent=won?T('p.youWin'):(d.name?T('p.wins',{n:d.name}):T('p.drawT'));
+  FX.over(d.losers,won);won?SFX.victory():SFX.sad();
+});
+// keep the phone screen awake + show connection status
+let wl;const lock=async()=>{try{wl=await navigator.wakeLock.request('screen')}catch(e){}};lock();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){lock();if(!sock.connected)sock.connect()}});
+sock.on('disconnect',()=>$('#net').classList.remove('hide'));sock.on('connect',()=>$('#net').classList.add('hide'));
+sock.on('closed',()=>{localStorage.removeItem('jcRoom');localStorage.removeItem('jcToken');alert(T('p.closed'));location.href='/'});
+</script></body></html>
